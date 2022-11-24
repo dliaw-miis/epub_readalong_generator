@@ -22,8 +22,8 @@ class EpubReadalongGenerator:
 
                 EpubReadalongGenerator.add_audio_file(working_dir, audio_filepath)
 
-                xhtml_files = EpubReadalongGenerator.get_xhtml_files(working_dir)
-                EpubReadalongGenerator.add_smil_files(working_dir, xhtml_files)
+                xhtml_stems = EpubReadalongGenerator.get_xhtml_stems(working_dir)
+                EpubReadalongGenerator.add_smil_files(working_dir, xhtml_stems)
         except Exception as error:
             logging.error(error)
 
@@ -41,26 +41,25 @@ class EpubReadalongGenerator:
         shutil.copy(src_audio_filepath, destination_audio_filepath)
 
     @staticmethod
-    def get_xhtml_files(working_dir: TemporaryDirectory)-> list[str]:
-        xhtml_files = []
+    # Assumes that all xhtml files are in OEBPS/text
+    def get_xhtml_stems(working_dir: TemporaryDirectory)-> list[str]:
+        xhtml_stems = []
         epub_text_dir = os.path.join(working_dir, "OEBPS", "text")
         for root, _, files in os.walk(epub_text_dir):
             for f in files:
                 filetype, _ = mimetypes.guess_type(f)
                 if filetype == "application/xhtml+xml":
-                    xhtml_files.append(os.path.join(root, f))
-        logging.debug(xhtml_files)
-        return xhtml_files
+                    xhtml_stems.append(Path(f).stem)
+        logging.debug(xhtml_stems)
+        return xhtml_stems
 
     @staticmethod
-    def add_smil_files(working_dir: TemporaryDirectory, xhtml_files: list[str]):
+    def add_smil_files(working_dir: TemporaryDirectory, xhtml_stems: list[str]):
         epub_smil_dir = os.path.join(working_dir, "OEBPS", "smil")
         if not os.path.exists(epub_smil_dir):
             os.mkdir(epub_smil_dir)
             logging.debug("created smil dir")
-        for file in xhtml_files:
-            logging.debug(file)
-            filestem = Path(file).stem
+        for filestem in xhtml_stems:
             logging.debug(filestem)
             page_smil_filepath = os.path.join(epub_smil_dir, filestem + ".smil")
             shutil.copy("resources/template.smil", page_smil_filepath)
