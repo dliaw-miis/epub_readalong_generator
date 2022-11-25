@@ -2,6 +2,8 @@
 
 import argparse
 import logging
+from lxml import etree
+from lxml.html import XHTMLParser
 import mimetypes
 import mutagen
 import os
@@ -55,7 +57,6 @@ class EpubReadalongGenerator:
                 filetype, _ = mimetypes.guess_type(f)
                 if filetype == "application/xhtml+xml":
                     xhtml_stems.append(Path(f).stem)
-        logging.debug(xhtml_stems)
         return sorted(xhtml_stems)
 
     @staticmethod
@@ -65,8 +66,7 @@ class EpubReadalongGenerator:
             os.mkdir(epub_smil_dir)
             logging.debug("created smil dir")
         for filestem in xhtml_stems:
-            logging.debug(filestem)
-            page_smil_filepath = os.path.join(epub_smil_dir, filestem + ".smil")
+            page_smil_filepath = EpubReadalongGenerator.get_smil_filepath(working_dir, filestem)
             shutil.copy("resources/template.smil", page_smil_filepath)
             logging.debug(page_smil_filepath)
 
@@ -122,6 +122,68 @@ class EpubReadalongGenerator:
 
         content_opf_tree.write(content_opf_filepath, "utf-8", True)
 
+    @staticmethod
+    def extract_text(working_dir, xhtml_stems: list[str]):
+        logging.debug("extract_text")
+        text_id = 0
+
+        for filestem in xhtml_stems:
+        # for filestem in xhtml_stems[:1]:
+            xhtml_filepath = EpubReadalongGenerator.get_xhtml_filepath(working_dir, filestem)
+            # file_xmltree = etree.parse(xhtml_filepath)
+            file_xmltree = etree.parse(xhtml_filepath, XHTMLParser(resolve_entities=False))
+            text_nodes = file_xmltree.xpath("//*[local-name()='body']//text()")
+            logging.debug(text_nodes)
+            for text in text_nodes:
+                logging.debug("text: " + text)
+                if not text.isspace():
+                    logging.debug(text)
+                    edited_text = text
+                    prev_sibling = None
+                    if text.is_tail:
+                        prev_sibling = text.getparent()
+                        prev_sibling.tail = None    # Remove existing text so it can be wrapped
+                    
+                    words = edited_text.split()
+                    logging.debug(words)
+                    # Loop through words and create sibling spans beneath the parent
+                    # Whitespace between words is attached as tail text
+                    for word in words:
+                        span_el = etree.Element("span")
+                        span_el.set("id", "w" + str(text_id))
+                        span_el.text = word
+                        logging.debug(edited_text)
+                        logging.debug(word)
+                        word_idx = edited_text.index(word)
+                        text_id += 1
+                        
+                        if prev_sibling is None:
+                            text_parent_el = text.getparent()
+                            text_parent_el.text = None  # Remove existing text so it can be wrapped
+                            text_parent_el.insert(0, span_el)
+                            if word_idx != 0:
+                                # Whitespace before first word is parent node text, not tail
+                                text_parent_el.text = edited_text[:word_idx]
+                        else:
+                            prev_sibling.addnext(span_el)
+                            if word_idx != 0: 
+                                prev_sibling.tail = edited_text[:word_idx]
+                        # Remove words/whitespace which have been processed
+                        edited_text = edited_text[word_idx + len(word):]
+                        prev_sibling = span_el
+                    if len(edited_text):
+                        # Leftover whitespace
+                        prev_sibling.tail = edited_text
+            file_xmltree.write(xhtml_filepath, encoding="utf-8", standalone=True)
+
+    
+    @staticmethod
+    def get_xhtml_filepath(working_dir, filestem: str)-> str:
+        return os.path.join(working_dir, "OEBPS", "text", filestem + ".xhtml")
+    
+    @staticmethod
+    def get_smil_filepath(working_dir, filestem: str)-> str:
+        return os.path.join(working_dir, "OEBPS", "smil", filestem + ".smil")    
         
 
 if __name__ == "__main__":
