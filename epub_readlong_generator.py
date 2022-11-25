@@ -16,7 +16,7 @@ import zipfile
 class EpubReadalongGenerator:
     
     @staticmethod
-    def generate_readalong(epub_filepath: str, audio_filepath: str):
+    def generate_readalong(epub_filepath: str, audio_filepath: str, audio_timing_filepath: str):
         try:
             folder_path, _ = os.path.split(epub_filepath)
             logging.info(epub_filepath)
@@ -27,12 +27,10 @@ class EpubReadalongGenerator:
                 logging.info("Extracted epub")
 
                 EpubReadalongGenerator.add_audio_file(working_dir, audio_filepath)
-
                 xhtml_stems = EpubReadalongGenerator.get_xhtml_stems(working_dir)
                 EpubReadalongGenerator.add_smil_files(working_dir, xhtml_stems)
                 EpubReadalongGenerator.edit_content_opf(working_dir, audio_filepath, xhtml_stems)
-        except Exception as error:
-            logging.error(error)
+            EpubReadalongGenerator.extract_text(working_dir, xhtml_stems, audio_timing_filepath, audio_filepath)
 
     @staticmethod
     def add_audio_file(working_dir, src_audio_filepath: str):
@@ -123,21 +121,29 @@ class EpubReadalongGenerator:
         content_opf_tree.write(content_opf_filepath, "utf-8", True)
 
     @staticmethod
-    def extract_text(working_dir, xhtml_stems: list[str]):
+    def extract_text(working_dir, xhtml_stems: list[str], audio_timing_filepath: str, src_audio_filepath: str):
         logging.debug("extract_text")
         text_id = 1
+        audio_timings = None
+        with open(audio_timing_filepath) as timing_fp:
+            audio_timings = timing_fp.readlines()
 
+        # Loop through xhtml files and:
+        # 1) Wrap individual words in spans
+        # 2) Add corresponding audio timing par to smil
         for filestem in xhtml_stems:
-        # for filestem in xhtml_stems[:1]:
             xhtml_filepath = EpubReadalongGenerator.get_xhtml_filepath(working_dir, filestem)
-            # file_xmltree = etree.parse(xhtml_filepath)
-            file_xmltree = etree.parse(xhtml_filepath, XHTMLParser(resolve_entities=False))
-            text_nodes = file_xmltree.xpath("//*[local-name()='body']//text()")
+            smil_filepath = EpubReadalongGenerator.get_smil_filepath(working_dir, filestem)
+            xhtml_xmltree = etree.parse(xhtml_filepath, XHTMLParser(resolve_entities=False))
+            smil_xmltree = etree.parse(smil_filepath)
+            text_nodes = xhtml_xmltree.xpath("//*[local-name()='body']//text()")
+            smil_body = smil_xmltree.xpath("//*[local-name()='body']")[0]
+            _, audio_filename = os.path.split(src_audio_filepath)
             logging.debug(text_nodes)
+            
             for text in text_nodes:
                 logging.debug("text: " + text)
                 if not text.isspace():
-                    logging.debug(text)
                     edited_text = text
                     prev_sibling = None
                     if text.is_tail:
@@ -155,6 +161,18 @@ class EpubReadalongGenerator:
                         logging.debug(edited_text)
                         logging.debug(word)
                         word_idx = edited_text.index(word)
+
+                        # Add timing to smil
+                        par_el = etree.SubElement(smil_body, "par")
+                        par_el.set("id", "par" + str(text_id))
+                        par_text_el = etree.SubElement(par_el, "text")
+                        par_text_el.set("src", f"../text/{filestem}.xhtml#w{text_id}")
+                        par_audio_el = etree.SubElement(par_el, "audio")
+                        par_audio_el.set("src", f"../audio/{audio_filename}")
+                        audio_timing = audio_timings[text_id - 1].split()
+                        par_audio_el.set("clipBegin", f"{audio_timing[0]}s")
+                        par_audio_el.set("clipEnd", f"{audio_timing[1]}s")
+                        
                         text_id += 1
                         
                         if prev_sibling is None:
@@ -174,7 +192,8 @@ class EpubReadalongGenerator:
                     if len(edited_text):
                         # Leftover whitespace
                         prev_sibling.tail = edited_text
-            file_xmltree.write(xhtml_filepath, encoding="utf-8", standalone=True)
+            xhtml_xmltree.write(xhtml_filepath, encoding="utf-8", standalone=True)
+            smil_xmltree.write(smil_filepath, encoding="utf-8")
 
     
     @staticmethod
@@ -196,4 +215,4 @@ if __name__ == "__main__":
     # print(args)
 
     logging.basicConfig(level=logging.DEBUG)
-    EpubReadalongGenerator.generate_readalong("./test/The Fire Engine Book_original copy.epub", "test/audio.m4a")
+    EpubReadalongGenerator.generate_readalong("./test/The Fire Engine Book_original copy.epub", "test/audio.m4a", "test/audio_full.txt")
