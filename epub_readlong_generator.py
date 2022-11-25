@@ -125,7 +125,7 @@ class EpubReadalongGenerator:
     @staticmethod
     def extract_text(working_dir, xhtml_stems: list[str]):
         logging.debug("extract_text")
-        text_id = 0
+        text_id = 1
 
         for filestem in xhtml_stems:
         # for filestem in xhtml_stems[:1]:
