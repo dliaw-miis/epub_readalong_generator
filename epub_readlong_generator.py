@@ -11,19 +11,15 @@ from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
 import xml.etree.ElementTree as ET
-import zipfile
 
 class EpubReadalongGenerator:
     
     @staticmethod
-    def generate_readalong(epub_filepath: str, audio_filepath: str, audio_timing_filepath: str):
-        try:
-            folder_path, _ = os.path.split(epub_filepath)
-            logging.info(epub_filepath)
+    def generate_readalong(src_epub_filepath: str, audio_filepath: str, audio_timing_filepath: str):
+        logging.info(src_epub_filepath)
             # with zipfile.ZipFile(epub_filepath, 'r') as epub, "TemporaryDirectory()" as working_dir:
-            with zipfile.ZipFile(epub_filepath, 'r') as epub:
                 working_dir = "test/epub"
-                epub.extractall(working_dir)
+        shutil.unpack_archive(src_epub_filepath, working_dir, "zip")
                 logging.info("Extracted epub")
 
                 EpubReadalongGenerator.add_audio_file(working_dir, audio_filepath)
