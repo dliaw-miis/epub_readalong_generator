@@ -27,6 +27,7 @@ class EpubReadalongGenerator:
                 EpubReadalongGenerator.add_smil_files(working_dir, xhtml_stems)
                 EpubReadalongGenerator.edit_content_opf(working_dir, audio_filepath, xhtml_stems)
             EpubReadalongGenerator.extract_text(working_dir, xhtml_stems, audio_timing_filepath, audio_filepath)
+        EpubReadalongGenerator.zip_epub(working_dir, src_epub_filepath)
 
     @staticmethod
     def add_audio_file(working_dir, src_audio_filepath: str):
@@ -190,6 +191,14 @@ class EpubReadalongGenerator:
                         prev_sibling.tail = edited_text
             xhtml_xmltree.write(xhtml_filepath, encoding="utf-8", standalone=True)
             smil_xmltree.write(smil_filepath, encoding="utf-8")
+    
+    @staticmethod
+    def zip_epub(working_dir, src_epub_filepath: str):
+        src_epub_folder, src_epub_filename = os.path.split(src_epub_filepath)
+        readalong_epub_filename = Path(src_epub_filename).stem + "_readalong.epub"
+        temp_epub_filepath = os.path.join(working_dir, "readalong.zip")
+        shutil.make_archive(os.path.join(working_dir, "readalong"), "zip", working_dir)
+        shutil.copyfile(temp_epub_filepath, os.path.join(src_epub_folder, readalong_epub_filename))
 
     
     @staticmethod
