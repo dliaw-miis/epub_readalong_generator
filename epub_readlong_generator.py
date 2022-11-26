@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
-import xml.etree.ElementTree as ET
 
 
 class EpubReadalongGenerator:
@@ -76,15 +75,11 @@ class EpubReadalongGenerator:
         logging.debug("Editing content.opf")
         content_opf_filepath = os.path.join(
             self.epub_workdir, "OEBPS", "content.opf")
-        ET.register_namespace("", "http://www.idpf.org/2007/opf")
-        content_opf_tree = ET.parse(content_opf_filepath)
-        root = content_opf_tree.getroot()
-        ns = {"opf": "http://www.idpf.org/2007/opf"}    # .opf namespace
+        content_opf_tree = etree.parse(content_opf_filepath)
 
         # Metadata - audio elements
-        metadata_el = root.find("opf:metadata", ns)
-        logging.debug(metadata_el)
-        media_duration_el = ET.Element("meta")
+        metadata_el = content_opf_tree.xpath(".//*[local-name()='metadata']")[0]
+        media_duration_el = etree.SubElement(metadata_el, "meta")
         media_duration_el.set("property", "media:duration")
         # Duration in seconds
         media_length = round(mutagen.File(self.src_audio_filepath).info.length)
@@ -92,36 +87,31 @@ class EpubReadalongGenerator:
         duration_minutes = (media_length % 3600) // 60
         duration_seconds = media_length % 60
         media_duration_el.text = f"{duration_hours}:{duration_minutes}:{duration_seconds}"
-        media_active_class_el = ET.Element("meta")
-        media_active_class_el.set("property", "media:active-class")
+        media_active_class_el = etree.SubElement(metadata_el, "meta")
         media_active_class_el.set("property", "media:active-class")
         media_active_class_el.text = "media-overlay-active"
-        metadata_el.append(media_duration_el)
-        metadata_el.append(media_active_class_el)
 
         # Manifest - audio
-        manifest_el = root.find("opf:manifest", ns)
-        logging.debug(metadata_el)
-        audio_item_el = ET.Element("item")
+        manifest_el = content_opf_tree.xpath(".//*[local-name()='manifest']")[0]
+        audio_item_el = etree.SubElement(manifest_el, "item")
         audio_item_el.set("id", "audio1")
         audio_filename = self.get_audio_filename()
         audio_item_el.set("href", "audio/" + audio_filename)
         filetype, _ = mimetypes.guess_type(audio_filename)
         audio_item_el.set("media-type", filetype)
-        manifest_el.append(audio_item_el)
 
         # Manifest - smil/xhtml
         # Loop through reversed list so that they are added in ascending order
         for filestem in reversed(self.xhtml_stems):
-            smil_el = ET.Element("item")
+            smil_el = etree.Element("item")
             smil_el.set("media-type", "application/smil+xml")
             smil_el.set("id", "smil_" + filestem)
             smil_el.set("href", "smil/" + filestem + ".smil")
             manifest_el.insert(0, smil_el)
-            xhtml_el = manifest_el.find("opf:item[@id='" + filestem + "']", ns)
+            xhtml_el = manifest_el.xpath(".//*[local-name()='item' and @id='" + filestem + "']")[0]
             xhtml_el.set("media-overlay", "smil_" + filestem)
 
-        content_opf_tree.write(content_opf_filepath, "utf-8", True)
+        content_opf_tree.write(content_opf_filepath, encoding="utf-8")
 
     def extract_text(self):
         logging.debug("Extract text")
