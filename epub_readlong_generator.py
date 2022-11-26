@@ -14,21 +14,33 @@ from tempfile import TemporaryDirectory
 
 class EpubReadalongGenerator:
 
-    def __init__(self, src_epub_filepath, src_audio_filepath, audio_timing_filepath):
+    def __init__(self, src_epub_filepath="", src_audio_filepath="", audio_timing_filepath=""):
         self.src_epub_filepath = src_epub_filepath
         self.src_audio_filepath = src_audio_filepath
         self.audio_timing_filepath = audio_timing_filepath
         self.epub_workdir = ""
         self.xhtml_stems = []
 
-    def generate(self):
+    def set_epub_filepath(self, src_epub_filepath):
+        self.src_epub_filepath = src_epub_filepath
+        return self
+
+    def set_audio_filepath(self, src_audio_filepath):
+        self.src_audio_filepath = src_audio_filepath
+        return self
+
+    def set_audio_timing_filepath(self, audio_timing_filepath):
+        self.audio_timing_filepath = audio_timing_filepath
+        return self
+
+    def build(self):
         logging.info(self.src_epub_filepath)
         with TemporaryDirectory() as tempdir:
             # Create temp working directory
             self.epub_workdir = os.path.join(tempdir, "epub")
             os.mkdir(self.epub_workdir)
             shutil.unpack_archive(self.src_epub_filepath,
-                                    self.epub_workdir, "zip")
+                                  self.epub_workdir, "zip")
             logging.debug(f"Extracted epub to {self.epub_workdir}")
 
             self.add_audio_file()
@@ -76,7 +88,8 @@ class EpubReadalongGenerator:
         content_opf_tree = etree.parse(content_opf_filepath)
 
         # Metadata - audio elements
-        metadata_el = content_opf_tree.xpath(".//*[local-name()='metadata']")[0]
+        metadata_el = content_opf_tree.xpath(
+            ".//*[local-name()='metadata']")[0]
         media_duration_el = etree.SubElement(metadata_el, "meta")
         media_duration_el.set("property", "media:duration")
         # Duration in seconds
@@ -90,7 +103,8 @@ class EpubReadalongGenerator:
         media_active_class_el.text = "media-overlay-active"
 
         # Manifest - audio
-        manifest_el = content_opf_tree.xpath(".//*[local-name()='manifest']")[0]
+        manifest_el = content_opf_tree.xpath(
+            ".//*[local-name()='manifest']")[0]
         audio_item_el = etree.SubElement(manifest_el, "item")
         audio_item_el.set("id", "audio1")
         audio_filename = self.get_audio_filename()
@@ -106,7 +120,8 @@ class EpubReadalongGenerator:
             smil_el.set("id", "smil_" + filestem)
             smil_el.set("href", "smil/" + filestem + ".smil")
             manifest_el.insert(0, smil_el)
-            xhtml_el = manifest_el.xpath(".//*[local-name()='item' and @id='" + filestem + "']")[0]
+            xhtml_el = manifest_el.xpath(
+                ".//*[local-name()='item' and @id='" + filestem + "']")[0]
             xhtml_el.set("media-overlay", "smil_" + filestem)
 
         content_opf_tree.write(content_opf_filepath, encoding="utf-8")
@@ -143,7 +158,6 @@ class EpubReadalongGenerator:
                         prev_sibling.tail = None    # Remove existing text so it can be wrapped
 
                     words = edited_text.split()
-                    logging.debug(words)
                     # Loop through words and create sibling spans beneath the parent
                     # Whitespace between words is attached as tail text
                     for word in words:
@@ -210,14 +224,19 @@ class EpubReadalongGenerator:
 
 
 if __name__ == "__main__":
-    # TODO: Implement argparse
-    # options_parser = argparse.ArgumentParser()
-    # options_parser.add_argument("--pages", type=str, required=False, help="Pages to do (<format example here>)")
+    options_parser = argparse.ArgumentParser()
+    options_parser.add_argument("epub_filepath")
+    options_parser.add_argument(
+        "-a", "--audio_file", type=str, required=True, help="Path to narration audio file")
+    options_parser.add_argument(
+        "-t", "--timing_file", type=str, required=True, help="Path to audio timing file")
+    # options_parser.add_argument("--css_file", type=str, required=False, help="Path to CSS file")
 
-    # EpubReadlongGenerator.do_something()
-    # args = options_parser.parse_args()
-    # print(args)
+    args = options_parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG)
-    EpubReadalongGenerator("./test/The Fire Engine Book_original copy.epub",
-                           "test/audio.m4a", "test/audio_full.txt").generate()
+    EpubReadalongGenerator() \
+        .set_epub_filepath(args.epub_filepath) \
+        .set_audio_filepath(args.audio_file) \
+        .set_audio_timing_filepath(args.timing_file) \
+        .build()
