@@ -14,10 +14,11 @@ from tempfile import TemporaryDirectory
 
 class EpubReadalongGenerator:
 
-    def __init__(self, src_epub_filepath="", src_audio_filepath="", audio_timing_filepath=""):
+    def __init__(self, src_epub_filepath="", src_audio_filepath="", audio_timing_filepath="", css_filepath=""):
         self.src_epub_filepath = src_epub_filepath
         self.src_audio_filepath = src_audio_filepath
         self.audio_timing_filepath = audio_timing_filepath
+        self.css_filepath = css_filepath
         self.epub_workdir = ""
         self.xhtml_stems = []
 
@@ -31,6 +32,10 @@ class EpubReadalongGenerator:
 
     def set_audio_timing_filepath(self, audio_timing_filepath):
         self.audio_timing_filepath = audio_timing_filepath
+        return self
+
+    def set_css_filepath(self, css_filepath):
+        self.css_filepath = css_filepath
         return self
 
     def build(self):
@@ -48,6 +53,7 @@ class EpubReadalongGenerator:
             self.add_smil_files()
             self.edit_content_opf()
             self.process_text()
+            self.add_css()
             self.zip_epub()
 
     def add_audio_file(self):
@@ -201,6 +207,14 @@ class EpubReadalongGenerator:
                 xhtml_filepath, encoding="utf-8", standalone=True)
             smil_xmltree.write(smil_filepath, encoding="utf-8")
 
+    def add_css(self):
+        if len(self.css_filepath):
+            with open(self.css_filepath) as new_css, \
+                open(os.path.join(self.epub_workdir, "OEBPS", "styles", "style.css"), "a") as current_css:
+                current_css.write("\n")
+                for line in new_css.readlines():
+                    current_css.write(line)
+
     def zip_epub(self):
         src_epub_folder, src_epub_filename = os.path.split(
             self.src_epub_filepath)
@@ -230,13 +244,17 @@ if __name__ == "__main__":
         "-a", "--audio_file", type=str, required=True, help="Path to narration audio file")
     options_parser.add_argument(
         "-t", "--timing_file", type=str, required=True, help="Path to audio timing file")
-    # options_parser.add_argument("--css_file", type=str, required=False, help="Path to CSS file")
+    options_parser.add_argument(
+        "-c", "--css_file", type=str, required=False, help="Path to CSS file")
+    options_parser.add_argument(
+        "-v", "--verbose", action=argparse.BooleanOptionalAction, required=False, help="Path to CSS file")
 
     args = options_parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
     EpubReadalongGenerator() \
         .set_epub_filepath(args.epub_filepath) \
         .set_audio_filepath(args.audio_file) \
         .set_audio_timing_filepath(args.timing_file) \
+        .set_css_filepath(args.css_file) \
         .build()
