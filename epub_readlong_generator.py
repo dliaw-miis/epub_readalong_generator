@@ -8,17 +8,22 @@ import mimetypes
 import mutagen
 import os
 from pathlib import Path
+import re
 import shutil
 from tempfile import TemporaryDirectory
 
 
 class EpubReadalongGenerator:
 
-    def __init__(self, src_epub_filepath="", src_audio_filepath="", audio_timing_filepath="", css_filepath=""):
+    range_pattern = re.compile("^\d+(_\d+)*(-\d+(_\d+)*)?$")
+
+    def __init__(self, src_epub_filepath="", src_audio_filepath="",
+                 audio_timing_filepath="", css_filepath="", page_range=""):
         self.src_epub_filepath = src_epub_filepath
         self.src_audio_filepath = src_audio_filepath
         self.audio_timing_filepath = audio_timing_filepath
         self.css_filepath = css_filepath
+        self.set_page_range(page_range)
         self.epub_workdir = ""
         self.xhtml_stems = []
 
@@ -37,6 +42,75 @@ class EpubReadalongGenerator:
     def set_css_filepath(self, css_filepath):
         self.css_filepath = css_filepath
         return self
+
+    def set_page_range(self, page_range):
+        self.page_range = []
+        patterns = page_range.split(",")
+        for i in range(len(patterns)):
+            patterns[i] = patterns[i].strip()
+        for pattern in patterns:
+            if EpubReadalongGenerator.range_pattern.match(pattern) is not None:
+                range_terms = pattern.split("-")
+                if len(range_terms) == 1:
+                    range_terms.append(range_terms[0])  # range end = start
+                range_terms[0], range_terms[1] = int(range_terms[0]), int(range_terms[1])
+                # Make sure range is in ascending order
+                if range_terms[0] > range_terms[1]:
+                    range_terms[0], range_terms[1] = range_terms[1], range_terms[0]
+
+                # Loop through and build ranges
+                if len(self.page_range) == 0:
+                    self.page_range.append(range_terms)
+                else:
+                    for i in range(len(self.page_range)):
+                        if range_terms[1] < self.page_range[i][0]:  # Strictly less than
+                            self.page_range.insert(i, range_terms)
+                            break
+                        # Overlapping, less than
+                        elif range_terms[1] <= self.page_range[i][1]:
+                            self.page_range[i][0] = min(range_terms[0], self.page_range[i][0])
+                            break
+                        # Overlapping, greater than
+                        elif range_terms[1] > self.page_range[i][1] and range_terms[0] <= self.page_range[i][1]:
+                            self.page_range[i][0] = min(range_terms[0], self.page_range[i][0])
+                            self.page_range[i][1] = max(range_terms[1], self.page_range[i][1])
+                            break
+                        # Strictly greater than, append if at end of list
+                        elif i == len(self.page_range) - 1:
+                            self.page_range.append(range_terms)
+                            break
+            else:
+                logging.warning(
+                    f"set_page_range: Ignored invalid range '{pattern}'")
+        
+        logging.debug(self.page_range)
+        logging.debug(self.page_range)
+        return self
+
+    # Extract page number from filestem. If no numbers in stem, return -1 (non-numbered page)
+    def parse_page_number(self, filestem):
+        start = end = -1
+        for i in range(len(filestem)):
+            if filestem[i].isdigit():
+                if start == -1:
+                    start = i
+                end = i
+            elif start != -1:
+                break
+        if start == -1:
+            return -1
+        
+        return int(filestem[start:end + 1])
+    
+    def is_page_in_range(self, page_number):
+        if len(self.page_range) == 0:
+            return True
+        in_range = False
+        for r in self.page_range:
+            if page_number >= r[0] and page_number <= r[1]:
+                in_range = True
+                break
+        return in_range
 
     def build(self):
         logging.info(self.src_epub_filepath)
@@ -74,7 +148,10 @@ class EpubReadalongGenerator:
             for f in files:
                 filetype, _ = mimetypes.guess_type(f)
                 if filetype == "application/xhtml+xml":
-                    self.xhtml_stems.append(Path(f).stem)
+                    filestem = Path(f).stem
+                    page_number = self.parse_page_number(filestem)
+                    if page_number == -1 or self.is_page_in_range(page_number):
+                        self.xhtml_stems.append(filestem)
         self.xhtml_stems = sorted(self.xhtml_stems)
 
     def add_smil_files(self):
@@ -142,7 +219,7 @@ class EpubReadalongGenerator:
         # Loop through xhtml files and:
         # 1) Wrap individual words in spans
         # 2) Add corresponding audio timing par to smil
-        for filestem in self.xhtml_stems[:12]:
+        for filestem in self.xhtml_stems:
             xhtml_filepath = self.get_xhtml_filepath(
                 filestem)
             smil_filepath = self.get_smil_filepath(filestem)
@@ -248,6 +325,8 @@ if __name__ == "__main__":
         "-c", "--css_file", type=str, required=False, help="Path to CSS file")
     options_parser.add_argument(
         "-v", "--verbose", action=argparse.BooleanOptionalAction, required=False, help="Path to CSS file")
+    options_parser.add_argument(
+        "-r", "--range", type=str, required=False, help="Page range to process. Separate individual pages with commas, use dash to indicate ranges (ex. 1,2,5-8)")
 
     args = options_parser.parse_args()
 
@@ -257,4 +336,5 @@ if __name__ == "__main__":
         .set_audio_filepath(args.audio_file) \
         .set_audio_timing_filepath(args.timing_file) \
         .set_css_filepath(args.css_file) \
+        .set_page_range(args.range) \
         .build()
