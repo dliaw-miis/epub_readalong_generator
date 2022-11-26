@@ -23,26 +23,24 @@ class EpubReadalongGenerator:
 
     def generate(self):
         logging.info(self.src_epub_filepath)
-        # with "TemporaryDirectory()" as tempdir:
-        tempdir = "test"
-        # Create temp working directory
-        self.epub_workdir = os.path.join(tempdir, "epub")
-        # os.rmdir(self.epub_workdir)
-        os.mkdir(self.epub_workdir)
-        shutil.unpack_archive(self.src_epub_filepath,
-                                self.epub_workdir, "zip")
-        logging.debug(f"Extracted epub to {self.epub_workdir}")
+        with TemporaryDirectory() as tempdir:
+            # Create temp working directory
+            self.epub_workdir = os.path.join(tempdir, "epub")
+            os.mkdir(self.epub_workdir)
+            shutil.unpack_archive(self.src_epub_filepath,
+                                    self.epub_workdir, "zip")
+            logging.debug(f"Extracted epub to {self.epub_workdir}")
 
-        self.add_audio_file()
-        self.get_xhtml_stems()
-        self.add_smil_files()
-        self.edit_content_opf()
-        self.extract_text()
-        self.zip_epub()
+            self.add_audio_file()
+            self.get_xhtml_stems()
+            self.add_smil_files()
+            self.edit_content_opf()
+            self.process_text()
+            self.zip_epub()
 
     def add_audio_file(self):
         audio_workdir = os.path.join(self.epub_workdir, "OEBPS", "audio")
-        logging.info(audio_workdir)
+        logging.debug(audio_workdir)
         if not os.path.exists(audio_workdir):
             os.mkdir(audio_workdir)
             logging.debug(f"Created audio directory: {audio_workdir}")
@@ -113,8 +111,8 @@ class EpubReadalongGenerator:
 
         content_opf_tree.write(content_opf_filepath, encoding="utf-8")
 
-    def extract_text(self):
-        logging.debug("Extract text")
+    def process_text(self):
+        logging.debug("Process text")
         text_id = 1
         audio_timings = None
         with open(self.audio_timing_filepath) as timing_fp:
@@ -137,7 +135,6 @@ class EpubReadalongGenerator:
             logging.debug(text_nodes)
 
             for text in text_nodes:
-                logging.debug("text: " + text)
                 if not text.isspace():
                     edited_text = text
                     prev_sibling = None
@@ -153,8 +150,6 @@ class EpubReadalongGenerator:
                         span_el = etree.Element("span")
                         span_el.set("id", "w" + str(text_id))
                         span_el.text = word
-                        logging.debug(edited_text)
-                        logging.debug(word)
                         word_idx = edited_text.index(word)
 
                         # Add timing to smil
