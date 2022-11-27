@@ -1,0 +1,79 @@
+# messages.po
+# Copyright (C) 2022 Dustin Liaw
+# This file is distributed under the same license as the EpubReadalongGenerator package.
+# Dustin Liaw <dliaw@middlebury.edu>, 2022.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Report-Msgid-Bugs-To: dliaw@middlebury.edu\n"
+"POT-Creation-Date: 2022-11-26 22:50-0800\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: EpubReadalongGeneratorUI.py:17
+msgid "EPUB Readalong Generator"
+msgstr "声同期Epubジェネレーター"
+
+#: EpubReadalongGeneratorUI.py:30
+msgid "Select EPUB file"
+msgstr "Epubファイルを選択します"
+
+#: EpubReadalongGeneratorUI.py:30
+msgid "EPUBs (*.epub)"
+msgstr "Epub (*.epub)"
+
+#: EpubReadalongGeneratorUI.py:35
+msgid "Select audio file"
+msgstr "音声ファイルを選択します"
+
+#: EpubReadalongGeneratorUI.py:40
+msgid "Select timing file"
+msgstr "音声同期ファイルを選択します"
+
+#: EpubReadalongGeneratorUI.py:45
+msgid "Select CSS file"
+msgstr "CSSファイルを選択します"
+
+#: EpubReadalongGeneratorUI.py:45
+msgid "CSS (*.css)"
+msgstr "CSS (*.css)"
+
+#: EpubReadalongGeneratorUI.py:57
+msgid "No EPUB file selected!"
+msgstr "EPUBファイルが指定されていません"
+
+#: EpubReadalongGeneratorUI.py:59
+msgid "No audio file selected!"
+msgstr "音声ファイルが指定されていません"
+
+#: EpubReadalongGeneratorUI.py:61
+msgid "No timing file selected!"
+msgstr "音声同期ファイルが指定されていません"
+
+#: EpubReadalongGeneratorUI.py:70
+msgid "Readalong epub generated!"
+msgstr "声同期Epubの作成が成功しました"
+
+msgid "EPUB file"
+msgstr "Epubファイル"
+
+msgid "Audio file"
+msgstr "音声ファイル"
+
+msgid "Timing file"
+msgstr "音声同期ファイル"
+
+msgid "CSS file"
+msgstr "CSSファイル"
+
+msgid "Page range"
+msgstr "ページ指定"
+
+msgid "Generate"
+msgstr "作成"
+
+msgid "Error: {}"
+msgstr "エラー: {}"

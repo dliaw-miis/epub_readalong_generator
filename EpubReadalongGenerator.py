@@ -128,7 +128,7 @@ class EpubReadalongGenerator:
             self.edit_content_opf()
             self.process_text()
             self.add_css()
-            self.zip_epub()
+            return self.zip_epub()
 
     def add_audio_file(self):
         audio_workdir = os.path.join(self.epub_workdir, "OEBPS", "audio")
@@ -300,8 +300,9 @@ class EpubReadalongGenerator:
         temp_epub_filepath = os.path.join(self.epub_workdir, "readalong.zip")
         shutil.make_archive(os.path.join(self.epub_workdir,
                             "readalong"), "zip", self.epub_workdir)
-        shutil.copyfile(temp_epub_filepath, os.path.join(
-            src_epub_folder, readalong_epub_filename))
+        readalong_epub_filepath = os.path.join(src_epub_folder, readalong_epub_filename)
+        shutil.copyfile(temp_epub_filepath, readalong_epub_filepath)
+        return readalong_epub_filepath
 
     def get_xhtml_filepath(self, filestem: str) -> str:
         return os.path.join(self.epub_workdir, "OEBPS", "text", filestem + ".xhtml")
