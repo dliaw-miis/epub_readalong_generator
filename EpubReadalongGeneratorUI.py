@@ -1,4 +1,5 @@
 import gettext
+import locale
 from PyQt6 import uic
 from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow
@@ -9,6 +10,8 @@ from EpubReadalongGenerator import EpubReadalongGenerator
 _ = gettext.gettext
 
 # Subclass QMainWindow to customize your application's main window
+
+
 class EpubReadalongGeneratorUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -30,10 +33,10 @@ class EpubReadalongGeneratorUI(QMainWindow):
 
         # Generate button
         self.generate_btn.clicked.connect(self.generate_readalong)
-        
 
     def epub_file_dialog(self):
-        filename = QFileDialog.getOpenFileName(None, _("Select EPUB file"), filter="EPUBs (*.epub)")
+        filename = QFileDialog.getOpenFileName(
+            None, _("Select EPUB file"), filter="EPUBs (*.epub)")
         if filename is not None:
             self.epub_text.setText(filename[0])
 
@@ -48,7 +51,8 @@ class EpubReadalongGeneratorUI(QMainWindow):
             self.timing_text.setText(filename[0])
 
     def css_file_dialog(self):
-        filename = QFileDialog.getOpenFileName(None, _("Select CSS file"), filter="CSS (*.css)")
+        filename = QFileDialog.getOpenFileName(
+            None, _("Select CSS file"), filter="CSS (*.css)")
         if filename is not None:
             self.css_text.setText(filename[0])
 
@@ -64,7 +68,8 @@ class EpubReadalongGeneratorUI(QMainWindow):
         elif len(audio_filepath) == 0:
             self.statusbar.showMessage(_("No audio file selected!"), 10 * 1000)
         elif len(timing_filepath) == 0:
-            self.statusbar.showMessage(_("No timing file selected!"), 10 * 1000)
+            self.statusbar.showMessage(
+                _("No timing file selected!"), 10 * 1000)
         else:
             try:
                 readalong_epub_filepath = EpubReadalongGenerator() \
@@ -77,14 +82,20 @@ class EpubReadalongGeneratorUI(QMainWindow):
                 self.statusbar.showMessage(_("Readalong epub generated!"))
             except Exception as e:
                 self.statusbar.showMessage(_("Error: {}").format(e), 10 * 1000)
-            
+
 
 if __name__ == "__main__":
     # Localization
-    l10n = gettext.translation('messages', localedir='locales', languages=[sys.argv[1], "en"], fallback=True)
+    default_locale, _ = locale.getlocale()
+    user_locale = ""
+    if len(sys.argv) > 1:
+        user_locale = sys.argv[1]
+        print(user_locale)
+    l10n = gettext.translation('messages', localedir='locales', languages=[
+                               user_locale, default_locale, "en_US"], fallback=True)
     l10n.install()
     _ = l10n.gettext
-    
+
     app = QApplication(sys.argv)
     window = EpubReadalongGeneratorUI()
     window.show()
